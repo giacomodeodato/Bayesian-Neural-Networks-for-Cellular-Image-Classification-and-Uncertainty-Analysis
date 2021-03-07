@@ -4,8 +4,29 @@ import torch.nn.functional as F
 import vinn
 
 class Pathway(vinn.Module):
+    """CNN pathway to analyze an image at a defined scale
+    as part of a Multi Scale CNN."""
 
-    def __init__(self, in_channels, out_channels, post_pool, pre_pool=None):
+    def __init__(self, in_channels : int, out_channels : int, post_pool : int, pre_pool : int = None) -> None:
+        """Initializes the Multi Scale CNN pathway.
+        
+        The number of internal features is fixed to be equal to the
+        number of output channels.
+
+        Parameters
+        ----------
+        in_channels : int
+            Number of input channels.
+        out_channels : int
+            Number of output channels.
+        post_pool : int
+            Size and stride of the max pooling final layer.
+        pre_pool : int, optional
+            Size and stride of the max pooling initial layer.
+            Default is None, no initial pooling.
+
+        """
+
         super(Pathway, self).__init__()
 
         self.pre_pool = pre_pool
@@ -18,7 +39,7 @@ class Pathway(vinn.Module):
         self.conv3 = vinn.Conv2d(out_channels, out_channels, 5, padding=2)
         self.bn3 = nn.BatchNorm2d(out_channels)
 
-    def forward(self, x):
+    def forward(self, x : torch.Tensor) -> torch.Tensor: 
         if self.pre_pool is not None:
             x = F.max_pool2d(x, self.pre_pool, self.pre_pool)
         x = F.relu(self.conv1(x))
@@ -31,8 +52,36 @@ class Pathway(vinn.Module):
         return x
 
 class BayesMultiScaleCNN(vinn.Module):
+    """Bayesian implementation of the Multi Scale CNN for cellular
+    image classification [1].
 
-    def __init__(self, n_outputs, in_channels=3, n_features=1024):
+    References
+    ----------
+        [1] Godinez, W. J., Hossain, I., Lazic, S. E., Davies, J. W., 
+        & Zhang, X. (2017). A multi-scale convolutional neural network 
+        for phenotyping high-content cellular images. Bioinformatics, 
+        33(13), 2010-2019.
+    """
+
+    def __init__(self, n_outputs: int, in_channels: int = 3, n_features: int = 1024) -> None:
+        """Initializes the neural network.
+        
+        The architecture is defined using 6 pathways to analyze the image
+        at different scales.
+
+        Parameters
+        ----------
+        n_outputs : int
+            Number of output classes.
+        in_channels : int, optional
+            Number of input channels.
+            Default is 3.
+        n_features : int, optional
+            Number of features of the final embedding layer.
+            Default is 1024.
+            
+        """
+
         super(BayesMultiScaleCNN, self).__init__()
 
         self.pathway1 = Pathway(in_channels, 16, 64 )
@@ -46,7 +95,7 @@ class BayesMultiScaleCNN(vinn.Module):
         self.bn = nn.BatchNorm1d(n_features)
         self.dense = vinn.Linear(n_features, n_outputs)
         
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = torch.cat(
             (
                 self.pathway1(x), 

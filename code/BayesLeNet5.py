@@ -3,6 +3,8 @@ import vinn as nn
 import torch.nn.functional as F
 
 class BayesLeNet5(nn.Module):
+    """Bayesian implementation of LeNet5 architecture"""
+
     def __init__(self):
         super(BayesLeNet5, self).__init__()
         self.conv1 = nn.Conv2d(1, 6, 5, padding=2)
